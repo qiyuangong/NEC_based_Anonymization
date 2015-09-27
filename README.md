@@ -1,1 +1,4 @@
-# EC_based_Anonymization
+cluster_based_k_anon
+====================
+
+cluster based generalization for k-anonymity
