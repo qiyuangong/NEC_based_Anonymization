@@ -8,7 +8,7 @@ from utils.read_adult_data import read_data as read_adult
 from utils.read_adult_data import read_tree as read_adult_tree
 from utils.read_informs_data import read_data as read_informs
 from utils.read_informs_data import read_tree as read_informs_tree
-from utils.ec_examine import ec_exam
+from utils.ec_examine import ec_exam_by_dim, ec_exam_by_size_data
 import sys
 import copy
 import pdb
@@ -35,4 +35,5 @@ if __name__ == '__main__':
         print "Adult data"
         DATA = read_adult()
         ATT_TREES = read_adult_tree()
-    ec_exam(DATA)
+    # ec_exam_by_dim(DATA)
+    ec_exam_by_size_data(DATA)
