@@ -1,13 +1,10 @@
-"""
-read adult data
-"""
-
 #!/usr/bin/env python
 # coding=utf-8
 
 # Read data and read tree fuctions for INFORMS data
-# attributes ['age', 'workcalss', 'final_weight', 'education', 'education_num', 'matrital_status', 'occupation',
-# 'relationship', 'race', 'sex', 'capital_gain', 'capital_loss', 'hours_per_week', 'native_country', 'class']
+# attributes ['age', 'workcalss', 'final_weight', 'education', 'education_num',
+# 'marital_status', 'occupation', 'relationship', 'race', 'sex', 'capital_gain',
+# 'capital_loss', 'hours_per_week', 'native_country', 'class']
 # QID ['age', 'workcalss', 'education', 'matrital_status', 'race', 'sex', 'native_country']
 # SA ['occopation']
 from models.gentree import GenTree
@@ -25,10 +22,9 @@ ATT_NAMES = ['age', 'workclass', 'final_weight', 'education',
 # age and education levels are treated as numeric attributes
 # only matrial_status and workclass has well defined generalization hierarchies.
 # other categorical attributes only have 2-level generalization hierarchies.
-QI_INDEX = [0, 1, 4, 5, 8, 9, 13]
-IS_CAT = [False, True, False, True, True, True, True]
-# OCC as SA, do not use class wiht only has two values
-SA_INDEX = 6
+QI_INDEX = [0, 1, 4, 5, 6, 8, 9, 13]
+IS_CAT = [False, True, False, True, True, True, True, True]
+gl_SA_index = -1
 
 __DEBUG = False
 
@@ -60,10 +56,10 @@ def read_data():
             if IS_CAT[i] is False:
                 try:
                     numeric_dict[i][temp[index]] += 1
-                except:
+                except KeyError:
                     numeric_dict[i][temp[index]] = 1
             ltemp.append(temp[index])
-        ltemp.append(temp[SA_INDEX])
+        ltemp.append(temp[gl_SA_index])
         data.append(ltemp)
     # pickle numeric attributes and get NumRange
     for i in range(QI_num):
@@ -132,7 +128,7 @@ def read_tree_file(treename):
             # try and except is more efficient than 'in'
             try:
                 att_tree[t]
-            except KeyError:
+            except:
                 att_tree[t] = GenTree(t, att_tree[temp[i - 1]], isleaf)
     if __DEBUG:
         print "Nodes No. = %d" % att_tree['*'].support

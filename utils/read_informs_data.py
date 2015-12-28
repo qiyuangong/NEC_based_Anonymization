@@ -1,8 +1,4 @@
-"""
-read infroms data
-"""
-
-# !/usr/bin/env python
+#!/usr/bin/env python
 # coding=utf-8
 
 # Read data and read tree fuctions for INFORMS data
@@ -20,13 +16,15 @@ USER_ATT = ['DUID', 'PID', 'DUPERSID', 'DOBMM', 'DOBYY', 'SEX',
             'RACEX', 'RACEAX', 'RACEBX', 'RACEWX', 'RACETHNX',
             'HISPANX', 'HISPCAT', 'EDUCYEAR', 'Year', 'marry', 'income', 'poverty']
 CONDITION_ATT = ['DUID', 'DUPERSID', 'ICD9CODX', 'year']
-# Only 5 relational attributes and 1 transaction attribute are selected (according to Poulis's paper)
+# 5 relational attributes and 1 transaction attribute are selected (according to Poulis's paper)
+# DOBMM DOBYY RACEX, EDUCYEAR, incom
 QI_INDEX = [3, 4, 6, 13, 16]
 IS_CAT = [True, True, True, True, False]
 
 
 def read_tree():
-    """read tree from data/tree_*.txt, store them in att_tree
+    """
+    read tree from data/tree_*.txt, store them in att_tree
     """
     att_names = []
     att_trees = []
@@ -52,11 +50,12 @@ def read_pickle_file(att_name):
         result = NumRange(sort_value, numeric_dict)
         return result
     except:
-        print "Pickle file not exists!!"
+        print "Pickle file not exists!!", att_name
 
 
 def read_tree_file(treename):
-    """read tree data from treename
+    """
+    read tree data from treename
     """
     leaf_to_path = {}
     att_tree = {}
@@ -120,7 +119,7 @@ def read_data(flag=0):
             if IS_CAT[j] is False:
                 try:
                     numeric_dict[j][row[index]] += 1
-                except KeyError:
+                except:
                     numeric_dict[j][row[index]] = 1
     conditiondata = {}
     for i, line in enumerate(conditionfile):
@@ -139,7 +138,7 @@ def read_data(flag=0):
     for k, v in userdata.iteritems():
         if __DEBUG and len(v) > 1:
             # check changes on QIDs excluding year(2003-2005)
-            for i in range(QI_num):
+            for i in range(len(USER_ATT)):
                 # year index = 14
                 if i == 14:
                     continue
