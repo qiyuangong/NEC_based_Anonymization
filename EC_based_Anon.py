@@ -1,442 +1,333 @@
 """
-main module of Semi_Partition
+main module for EC_based_Anon
 """
+#!/usr/bin/env python
+#coding=utf-8
 
-# !/usr/bin/env python
-# coding=utf-8
-
-
-import pdb
-import random
 from models.numrange import NumRange
 from models.gentree import GenTree
-from utils.utility import cmp_str, list_to_str
+from utils.utility import get_num_list_from_str, cmp_str, list_to_str
+import random
 import time
+import operator
+import pdb
 
 
 __DEBUG = False
-QI_LEN = 10
-GL_K = 0
-RESULT = []
+# att_tree store root node for each att
 ATT_TREES = []
+# databack store all reacord for dataset
+LEN_DATA = 0
+QI_LEN = 0
 QI_RANGE = []
 IS_CAT = []
+# get_LCA, middle and NCP require huge running time, while most of the function are duplicate
+# we can use cache to reduce the running time
+LCA_CACHE = []
+NCP_CACHE = {}
 
 
-class Partition(object):
+class Cluster(object):
 
-    """Class for Group, which is used to keep records
-    Store tree node in instances.
-    self.member: records in group
-    self.width: width of this partition on each domain. For categoric attribute, it equal
-    the number of leaf node, for numeric attribute, it equal to number range
-    self.middle: save the generalization result of this partition
-    self.allow: 0 donate that not allow to split, 1 donate can be split
+    """Cluster is for cluster based k-anonymity
+    middle denote generlized value for one cluster
+    self.member: record list in cluster
+    self.middle: middle node in cluster
     """
 
-    def __init__(self, data, width, middle):
+    def __init__(self, member, middle):
+        self.information_loss = 0.0
+        self.member = member
+        self.middle = middle[:]
+
+    def add_record(self, record):
         """
-        initialize with data, width and middle
+        add record to cluster
         """
-        self.member = list(data)
-        self.width = list(width)
-        self.middle = list(middle)
-        self.allow = [1] * QI_LEN
+        self.member.append(record)
+        self.update_middle(record)
+
+    def update_middle(self, merge_middle):
+        """
+        update middle and information_loss after adding record or merging cluster
+        :param merge_middle:
+        :return:
+        """
+        self.middle = middle(self.middle, merge_middle)
+        self.information_loss = len(self.member) * NCP(self.middle)
+
+
+    def add_same_record(self, record):
+        """
+        add record with same qid to cluster
+        """
+        self.member.append(record)
+
+    def merge_cluster(self, cluster):
+        """merge cluster into self and do not delete cluster elements.
+        update self.middle with middle
+        """
+        self.member.extend(cluster.member)
+        self.update_middle(cluster.middle)
+
+    def __getitem__(self, item):
+        """
+        :param item: index number
+        :return: middle[item]
+        """
+        return self.middle[item]
 
     def __len__(self):
         """
-        return the number of records in partition
+        return number of records in cluster
         """
-        ls = 0
-        for temp in self.member:
-            if isinstance(temp, Partition):
-                ls += len(temp)
-            else:
-                ls += 1
-        return ls
-
-    def __getitem__(self, item):
-        return self.middle[item]
+        return len(self.member)
 
 
-def get_normalized_width(partition, index):
+def r_distance(source, target):
     """
-    return Normalized width of partition
-    similar to NCP
+    Return distance between source (cluster or record)
+    and target (cluster or record). The distance is based on
+    NCP (Normalized Certainty Penalty) on relational part.
+    If source or target are cluster, func need to multiply
+    source_len (or target_len).
     """
-    if IS_CAT[index] is False:
-        low = partition.width[index][0]
-        high = partition.width[index][1]
-        width = float(ATT_TREES[index].sort_value[high]) - float(ATT_TREES[index].sort_value[low])
-    else:
-        width = partition.width[index]
-    return width * 1.0 / QI_RANGE[index]
+    source_mid = source
+    target_mid = target
+    source_len = 1
+    target_len = 1
+    # check if target is Cluster
+    if isinstance(target, Cluster):
+        target_mid = target.middle
+        target_len = len(target)
+    # check if souce is Cluster
+    if isinstance(source, Cluster):
+        source_mid = source.middle
+        source_len = len(source)
+    if source_mid == target_mid:
+        return 0
+    mid = middle(source_mid, target_mid)
+    # len should be taken into account
+    distance = (source_len + target_len) * NCP(mid)
+    return distance
 
 
-def choose_dimension(partition):
+def NCP(mid):
+    """Compute NCP (Normalized Certainty Penalty)
+    when generate record to middle.
     """
-    chooss dim with largest normlized Width
-    return dim index.
-    """
-    max_width = -1
-    max_dim = -1
-    for i in range(QI_LEN):
-        if partition.allow[i] == 0:
-            continue
-        normWidth = get_normalized_width(partition, i)
-        if normWidth > max_width:
-            max_width = normWidth
-            max_dim = i
-    if max_width > 1:
-        print "Error: max_width > 1"
-        pdb.set_trace()
-    if max_dim == -1:
-        print "cannot find the max dim"
-        pdb.set_trace()
-    return max_dim
-
-
-def frequency_set(partition, dim):
-    """
-    get the frequency_set of partition on dim
-    return dict{key: str values, values: count}
-    """
-    frequency = {}
-    for temp in partition.member:
-        num = 1
-        if isinstance(temp, Partition):
-            record = temp.middle
-            num = len(temp)
-        else:
-            record = temp
-        try:
-            frequency[record[dim]] += num
-        except KeyError:
-            frequency[record[dim]] = num
-    return frequency
-
-
-def find_median(partition, dim):
-    """
-    find the middle of the partition
-    return splitVal
-    """
-    frequency = frequency_set(partition, dim)
-    splitVal = ''
-    value_list = frequency.keys()
-    value_list.sort(cmp=cmp_str)
-    total = sum(frequency.values())
-    middle = total / 2
-    if middle < GL_K or len(value_list) <= 1:
-        return ('', '', value_list[0], value_list[-1])
-    index = 0
-    split_index = 0
-    for i, t in enumerate(value_list):
-        index += frequency[t]
-        if index >= middle:
-            splitVal = t
-            split_index = i
-            break
-    else:
-        print "Error: cannot find splitVal"
+    ncp = 0.0
+    # exclude SA values(last one type [])
+    list_key = list_to_str(mid)
     try:
-        nextVal = value_list[split_index + 1]
-    except IndexError:
-        nextVal = splitVal
-    return (splitVal, nextVal, value_list[0], value_list[-1])
-
-
-def split_numerical_value(numeric_value, splitVal):
-    """
-    split numeric value on splitVal
-    return sub ranges
-    """
-    split_num = numeric_value.split(',')
-    if len(split_num) <= 1:
-        return split_num[0], split_num[0]
-    else:
-        low = split_num[0]
-        high = split_num[1]
-        # Fix 2,2 problem
-        if low == splitVal:
-            lvalue = low
-        else:
-            lvalue = low + ',' + splitVal
-        if high == splitVal:
-            rvalue = high
-        else:
-            rvalue = splitVal + ',' + high
-        return lvalue, rvalue
-
-
-def split_numerical(partition, dim, pwidth, pmiddle):
-    """
-    strict split numeric attribute by finding a median,
-    lhs = [low, means], rhs = (mean, high]
-    """
-    sub_partitions = []
-    # numeric attributes
-    (splitVal, nextVal, low, high) = find_median(partition, dim)
-    p_low = ATT_TREES[dim].dict[low]
-    p_high = ATT_TREES[dim].dict[high]
-    # update middle
-    if low == high:
-        pmiddle[dim] = low
-    else:
-        pmiddle[dim] = low + ',' + high
-    pwidth[dim] = (p_low, p_high)
-    if splitVal == '' or splitVal == nextVal:
-        # update middle
-        return []
-    middle_pos = ATT_TREES[dim].dict[splitVal]
-    lmiddle = pmiddle[:]
-    rmiddle = pmiddle[:]
-    lmiddle[dim], rmiddle[dim] = split_numerical_value(pmiddle[dim], splitVal)
-    lhs = []
-    rhs = []
-    for temp in partition.member:
-        pos = ATT_TREES[dim].dict[temp[dim]]
-        if pos <= middle_pos:
-            # lhs = [low, means]
-            lhs.append(temp)
-        else:
-            # rhs = (mean, high]
-            rhs.append(temp)
-    lwidth = pwidth[:]
-    rwidth = pwidth[:]
-    lwidth[dim] = (pwidth[dim][0], middle_pos)
-    rwidth[dim] = (ATT_TREES[dim].dict[nextVal], pwidth[dim][1])
-    sub_partitions.append(Partition(lhs, lwidth, lmiddle))
-    sub_partitions.append(Partition(rhs, rwidth, rmiddle))
-    return sub_partitions
-
-
-def split_categorical(partition, dim, pwidth, pmiddle):
-    """
-    split categorical attribute using generalization hierarchy
-    """
-    sub_partitions = []
-    # categoric attributes
-    splitVal = ATT_TREES[dim][partition.middle[dim]]
-    sub_node = [t for t in splitVal.child]
-    sub_groups = []
-    for i in range(len(sub_node)):
-        sub_groups.append([])
-    if len(sub_groups) == 0:
-        # split is not necessary
-        return []
-    for temp in partition.member:
-        qid_value = temp[dim]
-        for i, node in enumerate(sub_node):
+        return NCP_CACHE[list_key]
+    except KeyError:
+        pass
+    for i in range(QI_LEN):
+        # if leaf_num of numerator is 1, then NCP is 0
+        width = 0.0
+        if IS_CAT[i] is False:
             try:
-                node.cover[qid_value]
-                sub_groups[i].append(temp)
-                break
-            except KeyError:
-                continue
+                float(mid[i])
+            except ValueError:
+                temp = mid[i].split(',')
+                width = float(temp[1]) - float(temp[0])
         else:
-            print "Generalization hierarchy error!"
-    for i, p in enumerate(sub_groups):
-        if len(p) == 0:
+            width = len(ATT_TREES[i][mid[i]]) * 1.0
+        width /= QI_RANGE[i]
+        ncp += width
+    NCP_CACHE[list_key] = ncp
+    return ncp
+
+
+def get_LCA(index, item1, item2):
+    """Get lowest commmon ancestor (including themselves)"""
+    # get parent list from
+    if item1 == item2:
+        return item1
+    try:
+        return LCA_CACHE[index][item1 + item2]
+    except KeyError:
+        pass
+    parent1 = ATT_TREES[index][item1].parent[:]
+    parent2 = ATT_TREES[index][item2].parent[:]
+    parent1.insert(0, ATT_TREES[index][item1])
+    parent2.insert(0, ATT_TREES[index][item2])
+    min_len = min(len(parent1), len(parent2))
+    last_LCA = parent1[-1]
+    # note here: when trying to access list reversely, take care of -0
+    for i in range(1, min_len + 1):
+        if parent1[-i].value == parent2[-i].value:
+            last_LCA = parent1[-i]
+        else:
+            break
+    LCA_CACHE[index][item1 + item2] = last_LCA.value
+    return last_LCA.value
+
+
+def middle(record1, record2):
+    """
+    Compute relational generalization result of record1 and record2
+    """
+    mid = []
+    for i in range(QI_LEN):
+        if IS_CAT[i] is False:
+            split_number = []
+            split_number.extend(get_num_list_from_str(record1[i]))
+            split_number.extend(get_num_list_from_str(record2[i]))
+            split_number = list(set(split_number))
+            if len(split_number) == 1:
+                mid.append(split_number[0])
+            else:
+                split_number.sort(cmp=cmp_str)
+                mid.append(split_number[0] + ',' + split_number[-1])
+        else:
+            mid.append(get_LCA(i, record1[i], record2[i]))
+    return mid
+
+
+def middle_for_cluster(records):
+    """
+    calculat middle of records(list) recursively.
+    Compute both relational middle for records (list).
+    """
+    len_r = len(records)
+    mid = records[0]
+    for i in range(1, len_r):
+        mid = middle(mid, records[i])
+    return mid
+
+
+def find_best_knn(index, k, nec_set):
+    """key fuction of KNN. Find k nearest neighbors of record, remove them from data"""
+    dist_dict = {}
+    seed_cluster = nec_set[index]
+    pop_index = [index]
+    max_distance = 1000000000000
+    # add random seed to cluster
+    for i, t in enumerate(nec_set):
+        if i == index:
             continue
-        wtemp = pwidth[:]
-        mtemp = pmiddle[:]
-        wtemp[dim] = len(sub_node[i])
-        mtemp[dim] = sub_node[i].value
-        sub_partitions.append(Partition(p, wtemp, mtemp))
-    return sub_partitions
-
-
-def split_partition(partition, dim):
-    """
-    split partition and distribute records to different sub-partitions
-    """
-    pwidth = partition.width
-    pmiddle = partition.middle
-    if IS_CAT[dim] is False:
-        return split_numerical(partition, dim, pwidth, pmiddle)
-    else:
-        return split_categorical(partition, dim, pwidth, pmiddle)
-
-
-def balance_partition(sub_partitions, leftover):
-    """
-    balance partitions:
-    Step 1: For partitions with less than k records, merge them to leftover partition.
-    Step 2: If leftover partition has less than k records, then move some records
-    from partitions with more than k records.
-    Step 3: After Step 2, if the leftover partition does not satisfy
-    k-anonymity, then merge a partitions with k records to the leftover partition.
-    Final: Backtrace leftover partition to the partent node.
-    """
-    if len(sub_partitions) <= 1:
-        # split failure
-        return
-    extra = 0
-    check_list = []
-    for sub_p in sub_partitions[:]:
-        record_set = sub_p.member
-        if len(sub_p) < GL_K:
-            leftover.member.extend(record_set)
-            sub_partitions.remove(sub_p)
+        dist = r_distance(seed_cluster.middle, t.middle)
+        dist_dict[i] = dist
+    sorted_dict = sorted(dist_dict.iteritems(), key=operator.itemgetter(1))
+    knn = sorted_dict[:k - 1]
+    knn.append((index, 0))
+    for current_index, _ in knn:
+        if len(seed_cluster) < k:
+            seed_cluster.merge_cluster(nec_set[current_index])
+            pop_index.append(current_index)
         else:
-            extra += len(record_set) - GL_K
-            check_list.append(sub_p)
-    # there is no record to balance
-    if len(leftover) == 0:
-        return
-    ls = len(leftover)
-    if ls < GL_K:
-        need_for_leftover = GL_K - ls
-        if need_for_leftover > extra:
-            min_p = 0
-            min_size = len(check_list[0])
-            for i, sub_p in enumerate(check_list):
-                if len(sub_p) < min_size:
-                    min_size = len(sub_p)
-                    min_p = i
-            sub_p = sub_partitions.pop(min_p)
-            leftover.member.extend(sub_p.member)
-        else:
-            while need_for_leftover > 0:
-                check_list = [t for t in sub_partitions if len(t) > GL_K]
-                for sub_p in check_list:
-                    if need_for_leftover > 0:
-                        temp = sub_p.member.pop(random.randrange(len(sub_p.member)))
-                        if isinstance(temp, Partition):
-                            record = temp.member.pop()
-                            sub_p.member.extend(temp.member)
-                        else:
-                            record = temp
-                        leftover.member.append(record)
-                        need_for_leftover -= 1
-    sub_partitions.append(leftover)
+            break
+    # delete multiple elements from data according to knn index list
+    return seed_cluster, pop_index
 
 
-def anonymize(partition):
-    """
-    Main procedure of Half_Partition.
-    recursively partition groups until not allowable.
-    """
-    if check_splitable(partition) is False:
-        RESULT.append(partition)
-        return
-    # leftover contains all records from subPartitons smaller than k
-    # So the GH of leftover is the same as Parent.
-    leftover = Partition([], partition.width, partition.middle)
-    # Choose dim
-    dim = choose_dimension(partition)
-    if dim == -1:
-        print "Error: dim=-1"
-        pdb.set_trace()
-    # leftover.allow[dim] = 0
-    # balance sub-partitions
-    sub_partitions = split_partition(partition, dim)
-    if len(sub_partitions) == 0:
-        partition.allow[dim] = 0
-        anonymize(partition)
-    else:
-        if len(sub_partitions) > 1:
-            balance_partition(sub_partitions, leftover)
-            if len(sub_partitions) == 1:
-                partition.allow[dim] = 0
-                anonymize(partition)
-                return
-        for sub_p in sub_partitions:
-            anonymize(sub_p)
+def find_best_cluster_knn(cluster, clusters):
+    """residual assignment. Find best cluster for record."""
+    min_distance = 1000000000000
+    min_index = 0
+    best_cluster = clusters[0]
+    for i, t in enumerate(clusters):
+        distance = r_distance(cluster.middle, t.middle)
+        if distance < min_distance:
+            min_distance = distance
+            min_index = i
+            best_cluster = t
+    # add record to best cluster
+    return min_index
 
 
-def check_splitable(partition):
+def clustering_knn(nec_set, k=25):
     """
-    Check if the partition can be further splited while satisfying k-anonymity.
+    Group record according to QID distance. KNN
     """
-    temp = sum(partition.allow)
-    if temp == 0:
-        return False
-    return True
+    clusters = [cluster for cluster in nec_set if len(cluster) >= k]
+    nec_set = [cluster for cluster in nec_set if len(cluster) < k]
+    # randomly choose seed and find k-1 nearest records to form cluster with size k
+    while len(nec_set) >= k:
+        index = random.randrange(len(nec_set))
+        # if len(nec_set[index]) >= k:
+        #     cluster = nec_set.pop(index)
+        #     clusters.append(cluster)
+        #     continue
+        cluster, pop_index = find_best_knn(index, k, nec_set)
+        nec_set = [t for i, t in enumerate(nec_set[:]) if i not in set(pop_index)]
+        clusters.append(cluster)
+    # residual assignment
+    while len(nec_set) > 0:
+        t = nec_set.pop()
+        # if len(t) >= k:
+        #     clusters.append(t)
+        #     continue
+        cluster_index = find_best_cluster_knn(t, clusters)
+        clusters[cluster_index].merge_cluster(t)
+    return clusters
 
 
-def init(att_trees, data, K, QI_num=-1):
+def create_nec(data):
     """
-    reset all global variables
+    create NEC from dateset using dict
+    :param data: dataset
+    :return: NEC in dict format: key is str, value is Cluster
     """
-    global GL_K, RESULT, QI_LEN, ATT_TREES, QI_RANGE, IS_CAT
+    nec_dict = dict()
+    for record in data:
+        key = ';'.join(record[:QI_LEN])
+        try:
+            nec_dict[key].add_same_record(record)
+        except KeyError:
+            nec_dict[key] = Cluster([record], record)
+    return nec_dict
+
+
+def init(att_trees, data, QI_num=-1):
+    """
+    init global variables
+    """
+    global ATT_TREES, DATA_BACKUP, LEN_DATA, QI_RANGE, IS_CAT, QI_LEN, LCA_CACHE, NCP_CACHE
     ATT_TREES = att_trees
-    for t in att_trees:
-        if isinstance(t, NumRange):
-            IS_CAT.append(False)
-        else:
-            IS_CAT.append(True)
+    QI_RANGE = []
+    IS_CAT = []
+    LEN_DATA = len(data)
+    LCA_CACHE = []
+    NCP_CACHE = {}
     if QI_num <= 0:
         QI_LEN = len(data[0]) - 1
     else:
         QI_LEN = QI_num
-    GL_K = K
-    RESULT = []
-    QI_RANGE = []
-
-
-def EC_Based_Anon(att_trees, data, K, QI_num=-1):
-    """
-    Semi_Partition for k-anonymity.
-    This fuction support both numeric values and categoric values.
-    For numeric values, each iterator is a mean split.
-    For categoric values, each iterator is a split on GH.
-    The final result is returned in 2-dimensional list.
-    """
-    init(att_trees, data, K, QI_num)
-    result = []
-    middle = []
-    wtemp = []
     for i in range(QI_LEN):
-        if IS_CAT[i] is False:
+        LCA_CACHE.append(dict())
+        if isinstance(ATT_TREES[i], NumRange):
+            IS_CAT.append(False)
             QI_RANGE.append(ATT_TREES[i].range)
-            wtemp.append((0, len(ATT_TREES[i].sort_value) - 1))
-            middle.append(ATT_TREES[i].value)
         else:
+            IS_CAT.append(True)
             QI_RANGE.append(len(ATT_TREES[i]['*']))
-            wtemp.append(len(ATT_TREES[i]['*']))
-            middle.append('*')
-    # create NEC
-    hash_dict = {}
-    for record in data:
-        qid_key = list_to_str(record[:-1])
-        try:
-            hash_dict[qid_key].append(record)
-        except KeyError:
-            hash_dict[qid_key] = [record]
-    nec_data = []
-    for temp in hash_dict.values():
-        if len(temp) == 1:
-            nec_data.append(temp[0])
-        else:
-            nec_data.append(Partition(temp, wtemp, temp[0]))
-    whole_partition = Partition(nec_data, wtemp, middle)
+
+
+def EC_based_Anon(att_trees, data, k=10, QI_num=-1):
+    """
+    the main function of EC_based_Anon
+    """
+    init(att_trees, data, QI_num)
+    result = []
     start_time = time.time()
-    anonymize(whole_partition)
+    nec_dict = create_nec(data)
+    clusters = clustering_knn(nec_dict.values(), k)
     rtime = float(time.time() - start_time)
     ncp = 0.0
-    for partition in RESULT:
-        r_ncp = 0.0
-        for i in range(QI_LEN):
-            r_ncp += get_normalized_width(partition, i)
-        temp = partition.middle
-        for i in range(len(partition)):
-            result.append(temp[:])
-        r_ncp *= len(partition)
-        ncp += r_ncp
-    # covert to NCP percentage
+    for cluster in clusters:
+        gen_result = []
+        mid = cluster.middle
+        for i in range(len(cluster)):
+            gen_result.append(mid)
+        result.extend(gen_result)
+        rncp = NCP(mid)
+        ncp += 1.0 * rncp * len(cluster)
+    ncp /= LEN_DATA
     ncp /= QI_LEN
-    ncp /= len(data)
     ncp *= 100
-    if len(result) != len(data):
-        print "Losing records during anonymization!!"
-        pdb.set_trace()
     if __DEBUG:
-        print "K=%d" % K
-        print "size of partitions"
-        print len(RESULT)
-        temp = [len(t) for t in RESULT]
-        print sorted(temp)
-        print "NCP = %.2f %%" % ncp
+        print "NCP=", ncp
     return (result, (ncp, rtime))

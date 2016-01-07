@@ -1,9 +1,7 @@
 import unittest
-
-from EC_based_Anon import EC_Based_Anon
-# from utils.read_data import read_data, read_tree
 from models.gentree import GenTree
 from models.numrange import NumRange
+from EC_based_Anon import EC_based_Anon
 import random
 import pdb
 
@@ -34,7 +32,26 @@ def init():
 
 
 class functionTest(unittest.TestCase):
-    def test1_semi_partition(self):
+    def test1_EC_based_Anon(self):
+        init()
+        data = [['6', '1', 'haha'],
+                ['6', '1', 'test'],
+                ['8', '2', 'haha'],
+                ['8', '2', 'test'],
+                ['4', '1', 'hha'],
+                ['4', '1', 'hha'],
+                ['4', '3', 'hha'],
+                ['4', '3', 'hha']]
+        result, eval_r = EC_based_Anon(ATT_TREE, data, 2)
+        try:
+            self.assertTrue(abs(eval_r[0] - 0) < 0.05)
+        except AssertionError:
+            print data
+            print result
+            print eval_r
+            self.assertEqual(0, 1)
+
+    def test2_EC_based_Anon(self):
         init()
         data = [['6', '1', 'haha'],
                 ['6', '1', 'test'],
@@ -44,25 +61,14 @@ class functionTest(unittest.TestCase):
                 ['4', '2', 'hha'],
                 ['4', '3', 'hha'],
                 ['4', '4', 'hha']]
-        result, eval_r = EC_Based_Anon(ATT_TREE, data, 2)
-        # print result
-        # print eval_r
-        self.assertTrue(abs(eval_r[0] - 100.0 / 36) < 0.05)
-
-    def test2_semi_partition_balance(self):
-        init()
-        data = [['6', '1', 'haha'],
-                ['6', '1', 'test'],
-                ['8', '2', 'haha'],
-                ['8', '2', 'test'],
-                ['4', '1', 'hha'],
-                ['4', '1', 'hha'],
-                ['1', '1', 'hha'],
-                ['2', '1', 'hha']]
-        result, eval_r = EC_Based_Anon(ATT_TREE, data, 2)
-        # print result
-        # print eval_r
-        self.assertTrue(abs(eval_r[0] - 100.0 / 16) < 0.05)
+        result, eval_r = EC_based_Anon(ATT_TREE, data, 2)
+        try:
+            self.assertTrue(abs(eval_r[0] - 2.77) < 0.05 or abs(eval_r[0] - 5.55) < 0.05)
+        except AssertionError:
+            print data
+            print result
+            print eval_r
+            self.assertEqual(0, 1)
 
 if __name__ == '__main__':
     unittest.main()

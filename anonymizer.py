@@ -9,23 +9,24 @@ from utils.read_adult_data import read_tree as read_adult_tree
 from utils.read_informs_data import read_data as read_informs
 from utils.read_informs_data import read_tree as read_informs_tree
 from utils.ec_examine import ec_exam_by_dim, ec_exam_by_size_data
-from EC_based_Anon import EC_Based_Anon
+from EC_based_Anon import EC_based_Anon
 import sys
 import copy
 import pdb
 import random
 import cProfile
 
+__DEBUG = True
 DATA_SELECT = 'a'
 DEFAULT_K = 10
 # sys.setrecursionlimit(50000)
 
 
 def get_result_one(att_trees, data, k=DEFAULT_K):
-    "run EC_Based_Anon for one time, with k=10"
+    "run EC_based_Anon for one time, with k=10"
     print "K=%d" % k
     data_back = copy.deepcopy(data)
-    _, eval_result = EC_Based_Anon(att_trees, data, k)
+    _, eval_result = EC_based_Anon(att_trees, data, k)
     print "NCP %0.2f" % eval_result[0] + "%"
     print "Running time %0.2f" % eval_result[1] + "seconds"
 
@@ -41,7 +42,7 @@ def get_result_k(att_trees, data):
     for k in [2, 5, 10, 25, 50, 100]:
         print '#' * 30
         print "K=%d" % k
-        _, eval_result = EC_Based_Anon(att_trees, data, k)
+        _, eval_result = EC_based_Anon(att_trees, data, k)
         data = copy.deepcopy(data_back)
         print "NCP %0.2f" % eval_result[0] + "%"
         all_ncp.append(round(eval_result[0], 2))
@@ -75,7 +76,7 @@ def get_result_dataset(att_trees, data, k=DEFAULT_K, n=10):
         print "size of dataset %d" % pos
         for j in range(n):
             temp = random.sample(data, pos)
-            result, eval_result = EC_Based_Anon(att_trees, temp, k)
+            result, eval_result = EC_based_Anon(att_trees, temp, k)
             ncp += eval_result[0]
             rtime += eval_result[1]
             data = copy.deepcopy(data_back)
@@ -102,7 +103,7 @@ def get_result_qi(att_trees, data, k=DEFAULT_K):
     for i in range(1, ls):
         print '#' * 30
         print "Number of QI=%d" % i
-        _, eval_result = EC_Based_Anon(att_trees, data, k, i)
+        _, eval_result = EC_based_Anon(att_trees, data, k, i)
         data = copy.deepcopy(data_back)
         print "NCP %0.2f" % eval_result[0] + "%"
         all_ncp.append(round(eval_result[0], 2))
@@ -132,6 +133,7 @@ if __name__ == '__main__':
     # ec_exam_by_dim(RAW_DATA)
     # ec_exam_by_size_data(RAW_DATA)
     # ec_exam_by_dim(RAW_DATA)
+    RAW_DATA = RAW_DATA[:2000]
     print '#' * 30
     if FLAG == 'k':
         get_result_k(ATT_TREES, RAW_DATA)
@@ -142,15 +144,21 @@ if __name__ == '__main__':
     elif FLAG == 'one':
         if LEN_ARGV > 3:
             k = int(sys.argv[3])
-            get_result_one(ATT_TREES, RAW_DATA, k)
+            if __DEBUG:
+                cProfile.run('get_result_one(ATT_TREES, RAW_DATA, k)')
+            else:
+                get_result_one(ATT_TREES, RAW_DATA, k)
         else:
             get_result_one(ATT_TREES, RAW_DATA)
     elif FLAG == '':
-        get_result_one(ATT_TREES, RAW_DATA)
+        if __DEBUG:
+            cProfile.run('get_result_one(ATT_TREES, RAW_DATA)')
+        else:
+            get_result_one(ATT_TREES, RAW_DATA)
     else:
         print "Usage: python anonymizer [a | i] [k | qi | data | one]"
         print "a: adult dataset, 'i': INFORMS ataset"
         print "K: varying k, qi: varying qi numbers, data: varying size of dataset, \
                 one: run only once"
     # anonymized dataset is stored in result
-    print "Finish EC_Based_Anon!!"
+    print "Finish EC_based_Anon!!"
