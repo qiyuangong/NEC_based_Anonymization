@@ -203,7 +203,6 @@ def find_best_knn(index, k, nec_set):
     dist_dict = {}
     seed_cluster = nec_set[index]
     pop_index = [index]
-    max_distance = 1000000000000
     # add random seed to cluster
     for i, t in enumerate(nec_set):
         if i == index:
@@ -212,7 +211,7 @@ def find_best_knn(index, k, nec_set):
         dist_dict[i] = dist
     sorted_dict = sorted(dist_dict.iteritems(), key=operator.itemgetter(1))
     knn = sorted_dict[:k - 1]
-    knn.append((index, 0))
+    # knn.append((index, 0))
     for current_index, _ in knn:
         if len(seed_cluster) < k:
             seed_cluster.merge_cluster(nec_set[current_index])
@@ -227,13 +226,11 @@ def find_best_cluster_knn(cluster, clusters):
     """residual assignment. Find best cluster for record."""
     min_distance = 1000000000000
     min_index = 0
-    best_cluster = clusters[0]
     for i, t in enumerate(clusters):
         distance = r_distance(cluster.middle, t.middle)
         if distance < min_distance:
             min_distance = distance
             min_index = i
-            best_cluster = t
     # add record to best cluster
     return min_index
 
@@ -252,7 +249,7 @@ def clustering_knn(nec_set, k=25):
         #     clusters.append(cluster)
         #     continue
         cluster, pop_index = find_best_knn(index, k, nec_set)
-        nec_set = [t for i, t in enumerate(nec_set[:]) if i not in set(pop_index)]
+        nec_set = [t for i, t in enumerate(nec_set) if i not in set(pop_index)]
         clusters.append(cluster)
     # residual assignment
     while len(nec_set) > 0:
@@ -317,17 +314,21 @@ def EC_based_Anon(att_trees, data, k=10, QI_num=-1):
     clusters = clustering_knn(nec_dict.values(), k)
     rtime = float(time.time() - start_time)
     ncp = 0.0
+    # pdb.set_trace()
     for cluster in clusters:
         gen_result = []
         mid = cluster.middle
         for i in range(len(cluster)):
-            gen_result.append(mid)
+            # do not forget to add SA!!!
+            gen_result.append(mid + [cluster.member[i][-1]])
         result.extend(gen_result)
-        rncp = NCP(mid)
-        ncp += 1.0 * rncp * len(cluster)
+        ncp += cluster.information_loss
     ncp /= LEN_DATA
     ncp /= QI_LEN
     ncp *= 100
     if __DEBUG:
         print "NCP=", ncp
+    if len(result) != len(data):
+        print "Record lost"
+        pdb.set_trace()
     return (result, (ncp, rtime))

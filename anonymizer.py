@@ -1,5 +1,5 @@
 """
-run cluster_based_k_anon with given parameters
+run EC_based_Anon with given parameters
 """
 
 # !/usr/bin/env python
@@ -16,7 +16,7 @@ import pdb
 import random
 import cProfile
 
-__DEBUG = True
+__DEBUG = False
 DATA_SELECT = 'a'
 DEFAULT_K = 10
 # sys.setrecursionlimit(50000)
@@ -133,7 +133,8 @@ if __name__ == '__main__':
     # ec_exam_by_dim(RAW_DATA)
     # ec_exam_by_size_data(RAW_DATA)
     # ec_exam_by_dim(RAW_DATA)
-    RAW_DATA = RAW_DATA[:2000]
+    if __DEBUG:
+        RAW_DATA = RAW_DATA[:2000]
     print '#' * 30
     if FLAG == 'k':
         get_result_k(ATT_TREES, RAW_DATA)
