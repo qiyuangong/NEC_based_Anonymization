@@ -32,7 +32,7 @@ def init():
 
 
 class functionTest(unittest.TestCase):
-    def test1_EC_based_Anon(self):
+    def test1_EC_based_Anon_knn(self):
         init()
         data = [['6', '1', 'haha'],
                 ['6', '1', 'test'],
@@ -42,7 +42,7 @@ class functionTest(unittest.TestCase):
                 ['4', '1', 'hha'],
                 ['4', '3', 'hha'],
                 ['4', '3', 'hha']]
-        result, eval_r = EC_based_Anon(ATT_TREE, data, 2)
+        result, eval_r = EC_based_Anon(ATT_TREE, data, 'knn', 2)
         try:
             self.assertTrue(abs(eval_r[0] - 0) < 0.05)
         except AssertionError:
@@ -51,7 +51,7 @@ class functionTest(unittest.TestCase):
             print eval_r
             self.assertEqual(0, 1)
 
-    def test2_EC_based_Anon(self):
+    def test2_EC_based_Anon_knn(self):
         init()
         data = [['6', '1', 'haha'],
                 ['6', '1', 'test'],
@@ -61,7 +61,7 @@ class functionTest(unittest.TestCase):
                 ['4', '2', 'hha'],
                 ['4', '3', 'hha'],
                 ['4', '4', 'hha']]
-        result, eval_r = EC_based_Anon(ATT_TREE, data, 2)
+        result, eval_r = EC_based_Anon(ATT_TREE, data, 'knn', 2)
         try:
             self.assertTrue(abs(eval_r[0] - 2.77) < 0.05 or abs(eval_r[0] - 5.55) < 0.05)
         except AssertionError:
@@ -69,6 +69,45 @@ class functionTest(unittest.TestCase):
             print result
             print eval_r
             self.assertEqual(0, 1)
+
+    def test1_EC_based_Anon_kmember(self):
+        init()
+        data = [['6', '1', 'haha'],
+                ['6', '1', 'test'],
+                ['8', '2', 'haha'],
+                ['8', '2', 'test'],
+                ['4', '1', 'hha'],
+                ['4', '1', 'hha'],
+                ['4', '3', 'hha'],
+                ['4', '3', 'hha']]
+        result, eval_r = EC_based_Anon(ATT_TREE, data, 'kmember', 2)
+        try:
+            self.assertTrue(abs(eval_r[0] - 0) < 0.05)
+        except AssertionError:
+            print data
+            print result
+            print eval_r
+            self.assertEqual(0, 1)
+
+    def test2_EC_based_Anon_kmember(self):
+        init()
+        data = [['6', '1', 'haha'],
+                ['6', '1', 'test'],
+                ['8', '2', 'haha'],
+                ['8', '2', 'test'],
+                ['4', '1', 'hha'],
+                ['4', '2', 'hha'],
+                ['4', '3', 'hha'],
+                ['4', '4', 'hha']]
+        result, eval_r = EC_based_Anon(ATT_TREE, data, 'kmember', 2)
+        try:
+            self.assertTrue(abs(eval_r[0] - 2.77) < 0.05 or abs(eval_r[0] - 5.55) < 0.05)
+        except AssertionError:
+            print data
+            print result
+            print eval_r
+            self.assertEqual(0, 1)
+
 
 if __name__ == '__main__':
     unittest.main()

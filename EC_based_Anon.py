@@ -56,7 +56,6 @@ class Cluster(object):
         self.middle = middle(self.middle, merge_middle)
         self.information_loss = len(self.member) * NCP(self.middle)
 
-
     def add_same_record(self, record):
         """
         add record with same qid to cluster
@@ -82,6 +81,22 @@ class Cluster(object):
         return number of records in cluster
         """
         return len(self.member)
+
+
+def diff_distance(source, target):
+    """
+    return IL(source and target) - IL(souce) - IL(target).
+    """
+    source_len = 1
+    source_mid = source
+    source_iloss = 0.0
+    if isinstance(source, Cluster):
+        source_mid = source.middle
+        source_len = len(source)
+        source_iloss = source.information_loss
+    mid_after = middle(source_mid, target.middle)
+    return NCP(mid_after) * (len(target) + source_len)\
+        - target.information_loss - source_iloss
 
 
 def r_distance(source, target):
@@ -207,11 +222,10 @@ def find_best_knn(index, k, nec_set):
     for i, t in enumerate(nec_set):
         if i == index:
             continue
-        dist = r_distance(seed_cluster.middle, t.middle)
+        dist = diff_distance(t, seed_cluster)
         dist_dict[i] = dist
     sorted_dict = sorted(dist_dict.iteritems(), key=operator.itemgetter(1))
     knn = sorted_dict[:k - 1]
-    # knn.append((index, 0))
     for current_index, _ in knn:
         if len(seed_cluster) < k:
             seed_cluster.merge_cluster(nec_set[current_index])
@@ -227,11 +241,63 @@ def find_best_cluster_knn(cluster, clusters):
     min_distance = 1000000000000
     min_index = 0
     for i, t in enumerate(clusters):
-        distance = r_distance(cluster.middle, t.middle)
+        distance = diff_distance(cluster, t)
         if distance < min_distance:
             min_distance = distance
             min_index = i
     # add record to best cluster
+    return min_index
+
+
+def find_furthest_record(record, nec_set):
+    """
+    find the furthest nec from record in nec_set
+    :param record:
+    :param nec_set:
+    :return: the index of furthest nec
+    """
+    max_distance = 0
+    max_index = -1
+    for index in range(len(nec_set)):
+        current_distance = r_distance(record, nec_set[index])
+        if current_distance >= max_distance:
+            max_distance = current_distance
+            max_index = index
+    return max_index
+
+
+def find_best_cluster_kmember(nec, clusters):
+    """residual assignment. Find best cluster for record."""
+    min_diff = 1000000000000
+    min_index = 0
+    best_cluster = clusters[0]
+    for i, t in enumerate(clusters):
+        IF_diff = diff_distance(nec, t)
+        if IF_diff < min_diff:
+            min_distance = IF_diff
+            min_index = i
+            best_cluster = t
+    # add record to best cluster
+    return min_index
+
+
+def find_best_record_kmember(cluster, nec_set):
+    """
+    :param cluster: current
+    :param data: remain dataset
+    :return: index of record with min diff on information loss
+    """
+    # pdb.set_trace()
+    min_diff = 1000000000000
+    min_index = 0
+    for index, nec in enumerate(nec_set):
+        # IF_diff = diff_distance(record, cluster)
+        # IL(cluster and record) and |cluster| + 1 is a constant
+        # so IL(record, cluster.middle) is enough
+        IF_diff = diff_distance(nec, cluster)
+        if IF_diff < min_diff:
+            min_diff = IF_diff
+            min_index = index
     return min_index
 
 
@@ -241,8 +307,9 @@ def clustering_knn(nec_set, k=25):
     """
     clusters = [cluster for cluster in nec_set if len(cluster) >= k]
     nec_set = [cluster for cluster in nec_set if len(cluster) < k]
+    remain = sum([len(t) for t in nec_set])
     # randomly choose seed and find k-1 nearest records to form cluster with size k
-    while len(nec_set) >= k:
+    while remain >= k:
         index = random.randrange(len(nec_set))
         # if len(nec_set[index]) >= k:
         #     cluster = nec_set.pop(index)
@@ -251,15 +318,49 @@ def clustering_knn(nec_set, k=25):
         cluster, pop_index = find_best_knn(index, k, nec_set)
         nec_set = [t for i, t in enumerate(nec_set) if i not in set(pop_index)]
         clusters.append(cluster)
+        remain -= len(cluster)
     # residual assignment
     while len(nec_set) > 0:
         t = nec_set.pop()
-        # if len(t) >= k:
-        #     clusters.append(t)
-        #     continue
         cluster_index = find_best_cluster_knn(t, clusters)
         clusters[cluster_index].merge_cluster(t)
     return clusters
+
+
+def clustering_kmember(nec_set, k=25):
+    """
+    group record accroding to QID distance. K-member
+    :param nec_set: natural EC
+    :param k: k
+    :return: grouped clusters
+    """
+    clusters = [cluster for cluster in nec_set if len(cluster) >= k]
+    nec_set = [cluster for cluster in nec_set if len(cluster) < k]
+    remain = sum([len(t) for t in nec_set])
+    # randomly choose seed and find k-1 nearest records to form cluster with size k
+    try:
+        r_pos = random.randrange(len(nec_set))
+        r_i = nec_set[r_pos].middle
+    except ValueError:
+        return clusters
+    while remain >= k:
+        r_pos = find_furthest_record(r_i, nec_set)
+        cluster = nec_set.pop(r_pos)
+        while len(cluster) < k:
+            r_pos = find_best_record_kmember(cluster, nec_set)
+            r_j = nec_set.pop(r_pos)
+            cluster.merge_cluster(r_j)
+        clusters.append(cluster)
+        remain -= len(cluster)
+    while len(nec_set) > 0:
+        t = nec_set.pop()
+        cluster_index = find_best_cluster_kmember(t, clusters)
+        clusters[cluster_index].merge_cluster(t)
+    return clusters
+
+
+def OKA(nec_set, k=25):
+    pass
 
 
 def create_nec(data):
@@ -303,7 +404,7 @@ def init(att_trees, data, QI_num=-1):
             QI_RANGE.append(len(ATT_TREES[i]['*']))
 
 
-def EC_based_Anon(att_trees, data, k=10, QI_num=-1):
+def EC_based_Anon(att_trees, data, type_alg='knn', k=10, QI_num=-1):
     """
     the main function of EC_based_Anon
     """
@@ -311,7 +412,16 @@ def EC_based_Anon(att_trees, data, k=10, QI_num=-1):
     result = []
     start_time = time.time()
     nec_dict = create_nec(data)
-    clusters = clustering_knn(nec_dict.values(), k)
+    if type_alg == 'knn':
+        print "Begin to KNN Cluster based on NCP"
+        clusters = clustering_knn(nec_dict.values(), k)
+    elif type_alg == 'kmember':
+        print "Begin to K-Member Cluster based on NCP"
+        clusters = clustering_kmember(nec_dict.values(), k)
+    else:
+        print "Please choose merge algorithm types"
+        print "knn | kmember"
+        return (0, (0, 0))
     rtime = float(time.time() - start_time)
     ncp = 0.0
     # pdb.set_trace()
