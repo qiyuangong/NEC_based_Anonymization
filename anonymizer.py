@@ -175,9 +175,9 @@ if __name__ == '__main__':
             INPUT_K = int(FLAG)
             get_result_one(ATT_TREES, DATA, TYPE_ALG, INPUT_K)
         except ValueError:
-            print "Usage: python anonymizer [a | i] [knn | kmember] [k | qi | data| n]"
+            print "Usage: python anonymizer [a | i] [knn | kmember | oka] [k | qi | data| n]"
             print "a: adult dataset, i: INFORMS ataset"
-            print "knn: k-nearest neighborhood, kmember: k-member"
+            print "knn: k-nearest neighborhood, kmember: k-member, oka:one time pass k-means algorithm"
             print "k: varying k"
             print "qi: varying qi numbers"
             print "data: varying size of dataset"
