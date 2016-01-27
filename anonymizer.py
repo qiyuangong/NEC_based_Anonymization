@@ -16,7 +16,7 @@ import pdb
 import random
 import cProfile
 
-__DEBUG = False
+__DEBUG = True
 TYPE_ALG = 'kmember'
 DATA_SELECT = 'a'
 DEFAULT_K = 10
@@ -34,7 +34,7 @@ def get_result_one(att_trees, data, type_alg, k=DEFAULT_K):
 
 def get_result_n(att_trees, data, type_alg, k=DEFAULT_K, n=10):
     """
-    run clustering_based_k_anon for n time, with k=10
+    run EC_based_Anon for n time, with k=10
     """
     print "K=%d" % k
     data_back = copy.deepcopy(data)

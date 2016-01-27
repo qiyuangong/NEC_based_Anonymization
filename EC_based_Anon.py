@@ -256,7 +256,7 @@ def find_best_knn(index, k, nec_set):
     return seed_cluster, pop_index
 
 
-def find_best_cluster_knn(cluster, clusters):
+def find_best_cluster_iloss(cluster, clusters):
     """residual assignment. Find best cluster for record."""
     min_distance = 1000000000000
     min_index = 0
@@ -286,7 +286,7 @@ def find_furthest_record(record, nec_set):
     return max_index
 
 
-def find_best_cluster_kmember(nec, clusters):
+def find_best_cluster_iloss_increase(nec, clusters):
     """residual assignment. Find best cluster for record."""
     min_diff = 1000000000000
     min_index = 0
@@ -301,7 +301,7 @@ def find_best_cluster_kmember(nec, clusters):
     return min_index
 
 
-def find_best_record_kmember(cluster, nec_set):
+def find_best_record_iloss_increase(cluster, nec_set):
     """
     :param cluster: current
     :param data: remain dataset
@@ -342,7 +342,7 @@ def clustering_knn(nec_set, k=25):
     # residual assignment
     while len(nec_set) > 0:
         t = nec_set.pop()
-        cluster_index = find_best_cluster_knn(t, clusters)
+        cluster_index = find_best_cluster_iloss(t, clusters)
         clusters[cluster_index].merge_cluster(t)
     return clusters
 
@@ -367,20 +367,72 @@ def clustering_kmember(nec_set, k=25):
         r_pos = find_furthest_record(r_i, nec_set)
         cluster = nec_set.pop(r_pos)
         while len(cluster) < k:
-            r_pos = find_best_record_kmember(cluster, nec_set)
+            r_pos = find_best_record_iloss_increase(cluster, nec_set)
             r_j = nec_set.pop(r_pos)
             cluster.merge_cluster(r_j)
         clusters.append(cluster)
         remain -= len(cluster)
     while len(nec_set) > 0:
         t = nec_set.pop()
-        cluster_index = find_best_cluster_kmember(t, clusters)
+        cluster_index = find_best_cluster_iloss_increase(t, clusters)
         clusters[cluster_index].merge_cluster(t)
     return clusters
 
 
-def OKA(nec_set, k=25):
-    pass
+def adjust_cluster(cluster, residual, k):
+    center = cluster.center
+    dist_dict = {}
+    # add random seed to cluster
+    for i, t in enumerate(cluster.member):
+        dist = r_distance(center, t)
+        dist_dict[i] = dist
+    sorted_dict = sorted(dist_dict.iteritems(), key=operator.itemgetter(1))
+    need_adjust_index = [t[0] for t in sorted_dict[k:]]
+    need_adjust = [cluster.member[t] for t in need_adjust_index]
+    residual.extend(need_adjust)
+    # update cluster
+    cluster.member = [t for i, t in enumerate(cluster.member)
+                      if i not in set(need_adjust_index)]
+    cluster.update_cluster()
+
+
+def clustering_oka(nec_set, k=25):
+    """
+    Group record according to NCP. OKA: one time pass k-means
+    """
+    can_clusters = [cluster for cluster in nec_set if len(cluster) >= k]
+    nec_set = [cluster for cluster in nec_set if len(cluster) < k]
+    remain = sum([len(t) for t in nec_set])
+    clusters = []
+    # randomly choose seed and find k-1 nearest records to form cluster with size k
+    seed_index = random.sample(range(len(nec_set)), remain / k)
+    for index in seed_index:
+        can_clusters.append(nec_set[index])
+    nec_set = [t for i, t in enumerate(nec_set[:]) if i not in set(seed_index)]
+    while len(nec_set) > 0:
+        nec = nec_set.pop()
+        index = find_best_cluster_iloss(nec, can_clusters)
+        can_clusters[index].merge_cluster(nec)
+    residual = []
+    less_clusters = []
+    for cluster in can_clusters:
+        if len(cluster) < k:
+            less_clusters.append(cluster)
+        else:
+            if len(cluster) > k:
+                adjust_cluster(cluster, residual, k)
+            clusters.append(cluster)
+    while len(residual) > 0:
+        record = residual.pop()
+        if len(less_clusters) > 0:
+            index = find_best_cluster_iloss(record, less_clusters)
+            less_clusters[index].add_record(record)
+            if less_clusters[index] >= k:
+                clusters.append(less_clusters.pop(index))
+        else:
+            index = find_best_cluster_iloss(record, clusters)
+            clusters[index].add_record(record)
+    return clusters
 
 
 def create_nec(data):
@@ -438,9 +490,12 @@ def EC_based_Anon(att_trees, data, type_alg='knn', k=10, QI_num=-1):
     elif type_alg == 'kmember':
         print "Begin to K-Member Cluster based on NCP"
         clusters = clustering_kmember(nec_dict.values(), k)
+    elif type_alg == 'oka':
+        print "Begin to OKA Cluster based on NCP"
+        clusters = clustering_oka(nec_dict.values(), k)
     else:
         print "Please choose merge algorithm types"
-        print "knn | kmember"
+        print "knn | kmember | oka"
         return (0, (0, 0))
     rtime = float(time.time() - start_time)
     ncp = 0.0
