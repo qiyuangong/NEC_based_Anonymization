@@ -389,9 +389,9 @@ def adjust_cluster(cluster, residual, k):
     sorted_dict = sorted(dist_dict.iteritems(), key=operator.itemgetter(1))
     pos = k
     current_dist = sorted_dict[k - 1][1]
-    for i in range(pos, len(cluster.member)):
-        if sorted_dict[pos][1] == current_dist:
-            pos += 1
+    for i in range(k, len(cluster.member)):
+        if sorted_dict[i][1] == current_dist:
+            pos = i + 1
         else:
             break
     need_adjust_index = [t[0] for t in sorted_dict[pos:]]
@@ -401,6 +401,18 @@ def adjust_cluster(cluster, residual, k):
     cluster.member = [t for i, t in enumerate(cluster.member)
                       if i not in set(need_adjust_index)]
     cluster.update_cluster()
+
+
+def residual_handle(residual, record_key, cluster):
+    while True:
+        try:
+            same_record = residual[-1]
+        except IndexError:
+            break
+        if record_key == qid_to_key(same_record[:QI_LEN]):
+            cluster.add_record(residual.pop(-1))
+        else:
+            break
 
 
 def clustering_oka(nec_set, k=25):
@@ -435,31 +447,24 @@ def clustering_oka(nec_set, k=25):
         if len(less_clusters) > 0:
             index = find_best_cluster_iloss(record, less_clusters)
             less_clusters[index].add_record(record)
-            while True:
-                try:
-                    same_record = residual[-1]
-                except IndexError:
-                    break
-                if record_key == qid_to_key(same_record[:QI_LEN]):
-                    less_clusters[index].add_record(same_record)
-                    residual.pop()
-                else:
-                    break
-            if less_clusters[index] >= k:
+            residual_handle(residual, record_key, less_clusters[index])
+            if len(less_clusters[index]) >= k:
                 clusters.append(less_clusters.pop(index))
         else:
             index = find_best_cluster_iloss(record, clusters)
             clusters[index].add_record(record)
-            while True:
-                try:
-                    same_record = residual[-1]
-                except IndexError:
-                    break
-                if record_key == qid_to_key(same_record[:QI_LEN]):
-                    clusters[index].add_record(same_record)
-                    residual.pop()
-                else:
-                    break
+            residual_handle(residual, record_key, clusters[index])
+    # sometimes residual records cannot satisfy less_clusters
+    # so we need to handle these clusters
+    if len(less_clusters) > 0:
+        for cluster in less_clusters:
+            residual.extend(cluster.member)
+        while len(residual) > 0:
+            record = residual.pop()
+            record_key = qid_to_key(record[:QI_LEN])
+            index = find_best_cluster_iloss(record, clusters)
+            clusters[index].add_record(record)
+            residual_handle(residual, record_key, clusters[index])
     return clusters
 
 

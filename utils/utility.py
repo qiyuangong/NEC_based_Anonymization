@@ -22,8 +22,7 @@ def qid_to_key(value_list, sep=';'):
     value_list will not be changed.
     return str list.
     """
-    temp = value_list[:]
-    return sep.join(temp)
+    return sep.join(value_list)
 
 
 def list_to_str(value_list, cmpfun=cmp, sep=';'):
