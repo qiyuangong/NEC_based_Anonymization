@@ -6,7 +6,7 @@ main module for EC_based_Anon
 
 from models.numrange import NumRange
 from models.gentree import GenTree
-from utils.utility import get_num_list_from_str, cmp_str, list_to_str
+from utils.utility import get_num_list_from_str, cmp_str, qid_to_key
 import random
 import time
 import operator
@@ -153,7 +153,7 @@ def NCP(record):
     """
     ncp = 0.0
     # exclude SA values(last one type [])
-    list_key = list_to_str(record)
+    list_key = qid_to_key(record)
     try:
         return NCP_CACHE[list_key]
     except KeyError:
@@ -387,7 +387,14 @@ def adjust_cluster(cluster, residual, k):
         dist = r_distance(center, t)
         dist_dict[i] = dist
     sorted_dict = sorted(dist_dict.iteritems(), key=operator.itemgetter(1))
-    need_adjust_index = [t[0] for t in sorted_dict[k:]]
+    pos = k
+    current_dist = sorted_dict[k - 1][1]
+    for i in range(pos, len(cluster.member)):
+        if sorted_dict[pos][1] == current_dist:
+            pos += 1
+        else:
+            break
+    need_adjust_index = [t[0] for t in sorted_dict[pos:]]
     need_adjust = [cluster.member[t] for t in need_adjust_index]
     residual.extend(need_adjust)
     # update cluster
@@ -424,14 +431,35 @@ def clustering_oka(nec_set, k=25):
             clusters.append(cluster)
     while len(residual) > 0:
         record = residual.pop()
+        record_key = qid_to_key(record[:QI_LEN])
         if len(less_clusters) > 0:
             index = find_best_cluster_iloss(record, less_clusters)
             less_clusters[index].add_record(record)
+            while True:
+                try:
+                    same_record = residual[-1]
+                except IndexError:
+                    break
+                if record_key == qid_to_key(same_record[:QI_LEN]):
+                    less_clusters[index].add_record(same_record)
+                    residual.pop()
+                else:
+                    break
             if less_clusters[index] >= k:
                 clusters.append(less_clusters.pop(index))
         else:
             index = find_best_cluster_iloss(record, clusters)
             clusters[index].add_record(record)
+            while True:
+                try:
+                    same_record = residual[-1]
+                except IndexError:
+                    break
+                if record_key == qid_to_key(same_record[:QI_LEN]):
+                    clusters[index].add_record(same_record)
+                    residual.pop()
+                else:
+                    break
     return clusters
 
 
@@ -443,7 +471,7 @@ def create_nec(data):
     """
     nec_dict = dict()
     for record in data:
-        key = ';'.join(record[:QI_LEN])
+        key = qid_to_key(record[:QI_LEN])
         try:
             nec_dict[key].add_same_record(record)
         except KeyError:

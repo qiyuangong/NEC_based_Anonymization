@@ -7,6 +7,25 @@ examine nature EC in raw dataset
 from utils.utility import list_to_str
 import pdb
 
+def ex_distribution(data, dim=-1):
+    """
+    examine the distribution of NEC in raw dataset
+    """
+    ec_dict = dict()
+    for record in data:
+        key = ';'.join(record[:dim])
+        try:
+            ec_dict[key] += 1
+        except KeyError:
+            ec_dict[key] = 1
+    dist_dict = dict()
+    for key, ec_size in ec_dict.items():
+        try:
+            dist_dict[ec_size] += 1
+        except KeyError:
+            dist_dict[ec_size] = 1
+    print dist_dict
+
 
 def ec_exam_by_dim(dataset):
     """
