@@ -8,8 +8,8 @@ from utils.read_adult_data import read_data as read_adult
 from utils.read_adult_data import read_tree as read_adult_tree
 from utils.read_informs_data import read_data as read_informs
 from utils.read_informs_data import read_tree as read_informs_tree
-from utils.ec_examine import ec_exam_by_dim, ec_exam_by_size_data, ec_distribution, dim_ec_distribution, size_ec_distribution
-from EC_based_Anon import EC_based_Anon
+from utils.nec_distribution import ec_exam_by_dim, ec_exam_by_size_data, ec_distribution, dim_ec_distribution, size_ec_distribution
+from NEC_based_Anon import NEC_based_Anon
 import sys
 import copy
 import pdb
@@ -27,7 +27,7 @@ def get_result_one(att_trees, data, type_alg, k=DEFAULT_K):
     "run EC_based_Anon for one time, with k=10"
     print "K=%d" % k
     data_back = copy.deepcopy(data)
-    _, eval_result = EC_based_Anon(att_trees, data, type_alg, k)
+    _, eval_result = NEC_based_Anon(att_trees, data, type_alg, k)
     print "NCP %0.2f" % eval_result[0] + "%"
     print "Running time %0.2f" % eval_result[1] + "seconds"
 
@@ -41,7 +41,7 @@ def get_result_n(att_trees, data, type_alg, k=DEFAULT_K, n=10):
     n_ncp = 0.0
     n_time = 0.0
     for i in range(n):
-        _, eval_result = EC_based_Anon(att_trees, data, type_alg, k)
+        _, eval_result = NEC_based_Anon(att_trees, data, type_alg, k)
         data = copy.deepcopy(data_back)
         n_ncp += eval_result[0]
         n_time += eval_result[1]
@@ -63,7 +63,7 @@ def get_result_k(att_trees, data, type_alg):
     for k in [2, 5, 10, 25, 50, 100]:
         print '#' * 30
         print "K=%d" % k
-        _, eval_result = EC_based_Anon(att_trees, data, type_alg, k)
+        _, eval_result = NEC_based_Anon(att_trees, data, type_alg, k)
         data = copy.deepcopy(data_back)
         print "NCP %0.2f" % eval_result[0] + "%"
         all_ncp.append(round(eval_result[0], 2))
@@ -97,7 +97,7 @@ def get_result_dataset(att_trees, data, type_alg, k=DEFAULT_K, n=10):
         print "size of dataset %d" % pos
         for j in range(n):
             temp = random.sample(data, pos)
-            result, eval_result = EC_based_Anon(att_trees, temp, type_alg, k)
+            result, eval_result = NEC_based_Anon(att_trees, temp, type_alg, k)
             ncp += eval_result[0]
             rtime += eval_result[1]
             data = copy.deepcopy(data_back)
@@ -124,7 +124,7 @@ def get_result_qi(att_trees, data, type_alg, k=DEFAULT_K):
     for i in range(1, ls):
         print '#' * 30
         print "Number of QI=%d" % i
-        _, eval_result = EC_based_Anon(att_trees, data, type_alg, k, i)
+        _, eval_result = NEC_based_Anon(att_trees, data, type_alg, k, i)
         data = copy.deepcopy(data_back)
         print "NCP %0.2f" % eval_result[0] + "%"
         all_ncp.append(round(eval_result[0], 2))
@@ -160,7 +160,7 @@ if __name__ == '__main__':
         # ec_exam_by_size_data(DATA)
         # print ec_distribution(DATA)
         # dim_ec_distribution(DATA)
-        size_ec_distribution(DATA)
+        # size_ec_distribution(DATA)
         # pdb.set_trace()
         print sys.argv
     if FLAG == 'k':
@@ -189,4 +189,4 @@ if __name__ == '__main__':
             print "data: varying size of dataset"
             print "example: python anonymizer a knn 5"
             print "example: python anonymizer a kmember k"
-    print "Finish EC_based_Anon!!"
+    print "Finish NEC_based_Anon!!"

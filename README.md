@@ -1,7 +1,7 @@
-NEC Based Anonymization
+NEC_Based_Anonymization
 ===========================
 
-This repository is an **open source python implementation for NEC based Anonymization**. I implement this algorithm in python for further study.
+This repository is an **open source python implementation for NEC_based_Anonymization**. I used this implementation in my recent paper.
 
 ### Motivation 
 Researches on data privacy have lasted for more than ten years, lots of great papers have been published. However, only a few open source projects are available on Internet [3-4], most open source projects are using algorithms proposed before 2004! Fewer projects have been used in real life. Worse more, most people even don't hear about it. Such a tragedy! 
@@ -13,7 +13,7 @@ I used **both adult and INFORMS** dataset in this implementation. For clarificat
 
 
 ### Usage and Parameters:
-My Implementation is based on Python 2.7 (not Python 3.0). Please make sure your Python environment is collectly installed. You can run Mondrian in following steps: 
+My Implementation is based on Python 2.7 (not Python 3.0). Please make sure your Python environment is correctly installed. You can run Mondrian in following steps:
 
 1) Download (or clone) the whole project. 
 
@@ -21,11 +21,11 @@ My Implementation is based on Python 2.7 (not Python 3.0). Please make sure your
 
 Parameters:
 
-	#Usage: python anonymizer [a | i] [knn | kmember | oka] [k | qi | data]
+	#Usage: python anonymizer.py [a | i] [knn | kmember | oka] [k | qi | data]
 	#a: adult dataset, i: INFORMS ataset
 	#knn:k-nearest neighbor, kmember: k-member, oka: one time pass k-means algorithm
 	#k: varying k, qi: varying qi numbers, data: varying size of dataset
-	# run Mondrian with adult data and oka with K(K=10)
+	# run NEC_Based_Anonymization with adult data and oka with K(K=10)
 	python anonymizer.py a oka 10
 	
 	# evalution knn by varying k

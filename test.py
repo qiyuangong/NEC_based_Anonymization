@@ -1,7 +1,7 @@
 import unittest
 from models.gentree import GenTree
 from models.numrange import NumRange
-from EC_based_Anon import EC_based_Anon
+from NEC_based_Anon import NEC_based_Anon
 import random
 import pdb
 
@@ -42,7 +42,7 @@ class functionTest(unittest.TestCase):
                 ['4', '1', 'hha'],
                 ['4', '3', 'hha'],
                 ['4', '3', 'hha']]
-        result, eval_r = EC_based_Anon(ATT_TREE, data, 'knn', 2)
+        result, eval_r = NEC_based_Anon(ATT_TREE, data, 'knn', 2)
         try:
             self.assertTrue(abs(eval_r[0] - 0) < 0.05)
         except AssertionError:
@@ -61,7 +61,7 @@ class functionTest(unittest.TestCase):
                 ['4', '2', 'hha'],
                 ['4', '3', 'hha'],
                 ['4', '4', 'hha']]
-        result, eval_r = EC_based_Anon(ATT_TREE, data, 'knn', 2)
+        result, eval_r = NEC_based_Anon(ATT_TREE, data, 'knn', 2)
         try:
             self.assertTrue(abs(eval_r[0] - 2.77) < 0.05 or abs(eval_r[0] - 5.55) < 0.05)
         except AssertionError:
@@ -80,7 +80,7 @@ class functionTest(unittest.TestCase):
                 ['4', '1', 'hha'],
                 ['4', '3', 'hha'],
                 ['4', '3', 'hha']]
-        result, eval_r = EC_based_Anon(ATT_TREE, data, 'kmember', 2)
+        result, eval_r = NEC_based_Anon(ATT_TREE, data, 'kmember', 2)
         try:
             self.assertTrue(abs(eval_r[0] - 0) < 0.05)
         except AssertionError:
@@ -99,7 +99,7 @@ class functionTest(unittest.TestCase):
                 ['4', '2', 'hha'],
                 ['4', '3', 'hha'],
                 ['4', '4', 'hha']]
-        result, eval_r = EC_based_Anon(ATT_TREE, data, 'kmember', 2)
+        result, eval_r = NEC_based_Anon(ATT_TREE, data, 'kmember', 2)
         try:
             self.assertTrue(abs(eval_r[0] - 2.77) < 0.05 or abs(eval_r[0] - 5.55) < 0.05)
         except AssertionError:
@@ -118,7 +118,7 @@ class functionTest(unittest.TestCase):
                 ['4', '1', 'hha'],
                 ['4', '3', 'hha'],
                 ['4', '3', 'hha']]
-        result, eval_r = EC_based_Anon(ATT_TREE, data, 'oka', 2)
+        result, eval_r = NEC_based_Anon(ATT_TREE, data, 'oka', 2)
         try:
             self.assertTrue(abs(eval_r[0] - 0) < 0.05)
         except AssertionError:
@@ -137,7 +137,7 @@ class functionTest(unittest.TestCase):
                 ['4', '2', 'hha'],
                 ['4', '3', 'hha'],
                 ['4', '4', 'hha']]
-        result, eval_r = EC_based_Anon(ATT_TREE, data, 'oka', 2)
+        result, eval_r = NEC_based_Anon(ATT_TREE, data, 'oka', 2)
         try:
             self.assertTrue(abs(eval_r[0] - 2.77) < 0.05 or abs(eval_r[0] - 5.55) < 0.05)
         except AssertionError:

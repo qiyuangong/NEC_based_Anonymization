@@ -509,7 +509,7 @@ def init(att_trees, data, QI_num=-1):
             QI_RANGE.append(len(ATT_TREES[i]['*']))
 
 
-def EC_based_Anon(att_trees, data, type_alg='knn', k=10, QI_num=-1):
+def NEC_based_Anon(att_trees, data, type_alg='knn', k=10, QI_num=-1):
     """
     the main function of EC_based_Anon
     """
